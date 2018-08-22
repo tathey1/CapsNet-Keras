@@ -33,7 +33,7 @@ def CapsNet(input_shape, n_class, routings):
     """
     x = layers.Input(shape=input_shape)
     x_resize = layers.Lambda(lambda image: ktf.image.resize_bilinear(image,
-                                                         (256,256)))(x) 
+                                                         (512,512)))(x) 
     # Conv Layers
     conv1 = layers.Conv2D(filters=64, kernel_size=4, strides=2, padding='valid',
                           activation='relu', name='conv1')(x_resize)
@@ -47,10 +47,10 @@ def CapsNet(input_shape, n_class, routings):
                           activation='relu', name='conv5')(conv4)
 
     # Layer 2: Conv2D layer with `squash` activation, then reshape to [None, num_capsule, dim_capsule]
-    primarycaps = PrimaryCap(conv1, dim_capsule=8, n_channels=512, kernel_size=9, strides=2, padding='valid')
+    primarycaps = PrimaryCap(conv5, dim_capsule=8, n_channels=512, kernel_size=9, strides=2, padding='valid')
 
     # Layer 3: Capsule layer. Routing algorithm works here.
-    digitcaps = CapsuleLayer(num_capsule=n_class, dim_capsule=8,
+    digitcaps = CapsuleLayer(num_capsule=n_class, dim_capsule=16,
                              routings=routings,
                              name='digitcaps')(primarycaps)
 
@@ -207,7 +207,7 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', default=50, type=int)
     parser.add_argument('--batch_size_train', default=36, type=int)
     parser.add_argument('--batch_size_val', default=20, type=int)
-    parser.add_argument('--lr', default=0.001, type=float,
+    parser.add_argument('--lr', default=0.0001, type=float,
                         help="Initial learning rate")
     parser.add_argument('--lr_decay', default=0.9, type=float,
                         help="The value multiplied by lr at each epoch. Set a larger value for larger epochs")
