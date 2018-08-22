@@ -43,11 +43,10 @@ def CapsNet(input_shape, n_class, routings):
                           activation='relu', name='conv3')(conv2)
     conv4 = layers.Conv2D(filters=256, kernel_size=6, strides=2, padding='valid',
                           activation='relu', name='conv4')(conv3)
-    conv5 = layers.Conv2D(filters=256, kernel_size=8, strides=2, padding='valid',
-                          activation='relu', name='conv5')(conv4)
+    
 
     # Layer 2: Conv2D layer with `squash` activation, then reshape to [None, num_capsule, dim_capsule]
-    primarycaps = PrimaryCap(conv5, dim_capsule=8, n_channels=512, kernel_size=9, strides=2, padding='valid')
+    primarycaps = PrimaryCap(conv4, dim_capsule=8, n_channels=32, kernel_size=8, strides=2, padding='valid')
 
     # Layer 3: Capsule layer. Routing algorithm works here.
     digitcaps = CapsuleLayer(num_capsule=n_class, dim_capsule=16,
@@ -154,9 +153,7 @@ def train(model, data, args):
     model.save_weights(args.save_dir + '/trained_model.h5')
     print('Trained model saved to \'%s/trained_model.h5\'' % args.save_dir)
 
-    from utils import plot_log
-    plot_log(args.save_dir + '/log.csv', show=True)
-
+    
     return model
 
 
@@ -198,6 +195,7 @@ if __name__ == "__main__":
     import argparse
     from keras.preprocessing.image import ImageDataGenerator
     from keras import callbacks
+    from keras.utils import multi_gpu_model
 
     num_classes = 4
     img_rows, img_cols = 1536, 2048
@@ -207,7 +205,7 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', default=50, type=int)
     parser.add_argument('--batch_size_train', default=36, type=int)
     parser.add_argument('--batch_size_val', default=20, type=int)
-    parser.add_argument('--lr', default=0.0001, type=float,
+    parser.add_argument('--lr', default=0.001, type=float,
                         help="Initial learning rate")
     parser.add_argument('--lr_decay', default=0.9, type=float,
                         help="The value multiplied by lr at each epoch. Set a larger value for larger epochs")
@@ -219,13 +217,14 @@ if __name__ == "__main__":
                         help="Fraction of pixels to shift at most in each direction.")
     parser.add_argument('--debug', action='store_true',
                         help="Save weights by TensorBoard")
-    parser.add_argument('--save_dir', default='./result')
+    parser.add_argument('--save_dir', default='/workspace/results_keras/capsule')
     parser.add_argument('-t', '--testing', action='store_true',
                         help="Test the trained model on testing dataset")
     parser.add_argument('--digit', default=5, type=int,
                         help="Digit to manipulate")
     parser.add_argument('-w', '--weights', default=None,
                         help="The path of the saved weights. Should be specified when testing")
+    parser.add_argument('--gpus', default=2, type=int)
     args = parser.parse_args()
     print(args)
 
@@ -266,9 +265,11 @@ if __name__ == "__main__":
 
     # train or test
     if args.weights is not None:  # init the model weights with provided one
+        print('Loading Weights')
         model.load_weights(args.weights)
     if not args.testing:
-        train(model=model, data=((x_train, y_train), (x_test, y_test)), args=args)
+        multi_model = multi_gpu_model(model, gpus=args.gpus)
+        train(model=multi_model, data=((x_train, y_train), (x_test, y_test)), args=args)
     else:  # as long as weights are given, will run testing
         if args.weights is None:
             print('No weights are provided. Will test using random initialized weights.')
